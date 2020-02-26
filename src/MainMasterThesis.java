@@ -1,6 +1,11 @@
+import anonymity.algorithms.Mondrian;
+import data.EquivalenceClass;
 import org.hsqldb.jdbc.JDBCStatement;
+import readers.ConfReader;
+import readers.DataReader;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,6 +29,7 @@ public class MainMasterThesis{
             return;
         }
         try {
+            /*
             Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\test", "SA", "");
             System.out.println("Connected");
             statement = (JDBCStatement) c.createStatement();
@@ -34,8 +40,9 @@ public class MainMasterThesis{
             printResultToFile(statement.executeQuery("explain json minimal for "+query),fileName,".json");
             printResultToFile(statement.executeQuery(query),fileName,".csv");
 
-            c.close();
-        } catch (SQLException | IOException e) {
+            c.close();*/
+            mondrian();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
@@ -104,4 +111,26 @@ public class MainMasterThesis{
         }
 
     }
+
+    private static void mondrian() throws IOException {
+        DataReader datareader = new DataReader("./data/adult.csv");
+        EquivalenceClass data = new EquivalenceClass();
+        //Numero di righe
+        int tupleNumber=32561;
+        for(int i=0;i<tupleNumber;i++)
+            data.add(datareader.getNextTuple());
+        //Valore di K
+        int k = 3;
+        //Vettore contenente i quasi identifier
+        String[] qid = ("0 2").split(" ");
+
+        Mondrian algo = new Mondrian();
+        algo.setQID(qid);
+        algo.setData(data);
+        algo.setK(k);
+        algo.setRelaxedPartitioning();
+        algo.run();
+        System.out.println(algo.getResults().toString());
+    }
+
 }

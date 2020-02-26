@@ -8,5 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="hsqldb_editInsubria" level="project" />
+    <orderEntry type="library" name="anonymity" level="project" />
   </component>
 </module>
