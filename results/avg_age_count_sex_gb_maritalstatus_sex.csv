@@ -1,0 +1,15 @@
+MARITALSTATUS,SEX,AVG_AGE,NUM
+Widowed,Female,58,825
+Divorced,Female,43,2672
+Separated,Female,39,631
+Separated,Male,38,394
+Never-married,Female,28,4767
+Never-married,Male,28,5916
+Divorced,Male,42,1771
+Married-civ-spouse,Male,43,13319
+Married-spouse-absent,Female,39,205
+Married-civ-spouse,Female,39,1657
+Widowed,Male,61,168
+Married-spouse-absent,Male,41,213
+Married-AF-spouse,Male,31,9
+Married-AF-spouse,Female,33,14
