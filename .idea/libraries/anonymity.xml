@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="anonymity">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../anonymization/classes/artifacts/anonymity_jar/anonymity.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
