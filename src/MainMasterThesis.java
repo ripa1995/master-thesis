@@ -25,7 +25,7 @@ public class MainMasterThesis{
 
     private static JDBCStatement statement;
 
-    public static void main(String args[]){
+    public static void main(String args[]) throws IOException {
         try {
             Class.forName("org.hsqldb.jdbc.JDBCDriver" );
         } catch (Exception e) {
@@ -33,25 +33,26 @@ public class MainMasterThesis{
             e.printStackTrace();
             return;
         }
-        try {
-            /*
-            Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\test", "SA", "");
-            System.out.println("Connected");
-            statement = (JDBCStatement) c.createStatement();
-            importAdultDataset();
+        /*
+        Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\test", "SA", "");
+        System.out.println("Connected");
+        statement = (JDBCStatement) c.createStatement();
+        importAdultDataset();
 
-            String query = "select maritalStatus, sex, AVG(age) as AVG_AGE, count(sex) as num from adult group by maritalStatus, sex";
-            String fileName = "avg_age_count_sex_gb_maritalstatus_sex";
-            printResultToFile(statement.executeQuery("explain json minimal for "+query),fileName,".json");
-            printResultToFile(statement.executeQuery(query),fileName,".csv");
+        String query = "select maritalStatus, sex, AVG(age) as AVG_AGE, count(sex) as num from adult group by maritalStatus, sex";
+        String fileName = "avg_age_count_sex_gb_maritalstatus_sex";
+        printResultToFile(statement.executeQuery("explain json minimal for "+query),fileName,".json");
+        printResultToFile(statement.executeQuery(query),fileName,".csv");
 
-            c.close();
-            mondrian();*/
-            flash();
-        } catch (IOException e) {
-            e.printStackTrace();
+        c.close();
+        mondrian();*/
+        int[] k_array = new int[]{5,10,15,20};
+        double[] s_array = new double[]{0.0,0.04,0.08,0.12,0.16,0.20};
+        for(int k:k_array) {
+            for (double s : s_array) {
+                flash(k, s);
+            }
         }
-
     }
 
     private static void printResultToFile(ResultSet resultSet, String fileName,String extension) throws SQLException, IOException {
@@ -140,7 +141,7 @@ public class MainMasterThesis{
         //System.out.println(algo.getResults().get(0).get(0).getValue(2) +" "+algo.getResults().get(0).get(1).getValue(2));
     }
 
-    private  static void flash() throws IOException {
+    private  static void flash(int k, double suppression) throws IOException {
         Data data = Data.create("./data/dataset/adult_clear.csv", StandardCharsets.UTF_8, ',');
 
         // Define input files
@@ -161,41 +162,45 @@ public class MainMasterThesis{
         data.getDefinition().setAttributeType("hours-per-week",AttributeType.INSENSITIVE_ATTRIBUTE);
 
         // set the minimal/maximal generalization height
-        data.getDefinition().setMaximumGeneralization("age", 3);
-        data.getDefinition().setMaximumGeneralization("education", 2);
+        //data.getDefinition().setMaximumGeneralization("age", 3);
+        //data.getDefinition().setMaximumGeneralization("education", 2);
 
         // Create an instance of the anonymizer
         ARXAnonymizer anonymizer = new ARXAnonymizer();
 
         // Execute the algorithm
         ARXConfiguration config = ARXConfiguration.create();
-        config.addPrivacyModel(new KAnonymity(3));
-        config.setSuppressionLimit(0d);
+        config.addPrivacyModel(new KAnonymity(k));
+        config.setSuppressionLimit(suppression);
         ARXResult result = anonymizer.anonymize(data, config);
 
+        String filename = "adult_flash_anon_"+k+"_"+(int)(suppression*100)+"%";
+
         // Print info
-        printResult(result, data);
+        printResult(result, data, filename);
 
         // Write results
         System.out.print(" - Writing data...");
-        //result.getOutput(false).save("data/test_anonymized.csv", ';');
+        result.getOutput(false).save("data/anonymized/"+filename+".csv", ';');
         System.out.println("Done!");
     }
 
-    protected static void printResult(final ARXResult result, final Data data) {
+    protected static void printResult(final ARXResult result, final Data data, String fileName) throws IOException {
+
+        StringBuilder sb = new StringBuilder();
 
         // Print time
         final DecimalFormat df1 = new DecimalFormat("#####0.00");
         final String sTotal = df1.format(result.getTime() / 1000d) + "s";
-        System.out.println(" - Time needed: " + sTotal);
+        sb.append(" - Time needed: " + sTotal);
+        sb.append("\n");
 
         // Extract
         final ARXLattice.ARXNode optimum = result.getGlobalOptimum();
         final List<String> qis = new ArrayList<String>(data.getDefinition().getQuasiIdentifyingAttributes());
 
         if (optimum == null) {
-            System.out.println(" - No solution found!");
-            return;
+            return ;
         }
 
         // Initialize
@@ -225,12 +230,26 @@ public class MainMasterThesis{
         }
 
         // Print
-        System.out.println(" - Information loss: " + result.getGlobalOptimum().getLowestScore() + " / " + result.getGlobalOptimum().getHighestScore());
-        System.out.println(" - Optimal generalization");
+        sb.append(" - Information loss: " + result.getGlobalOptimum().getLowestScore() + " / " + result.getGlobalOptimum().getHighestScore());
+        sb.append("\n");
+        sb.append(" - Optimal generalization");
+        sb.append("\n");
         for (int i = 0; i < qis.size(); i++) {
-            System.out.println("   * " + identifiers[i] + ": " + generalizations[i]);
+            sb.append("   * " + identifiers[i] + ": " + generalizations[i]);
+            sb.append("\n");
         }
-        System.out.println(" - Statistics");
-        System.out.println(result.getOutput(result.getGlobalOptimum(), false).getStatistics().getEquivalenceClassStatistics());
+        sb.append(" - Statistics");
+        sb.append("\n");
+        sb.append(result.getOutput(result.getGlobalOptimum(), false).getStatistics().getEquivalenceClassStatistics());
+
+        File dir = new File("./data/anonymized");
+        dir.mkdirs();
+        File file = new File(dir,fileName+"_statistics.txt");
+        FileOutputStream fileOutputStream = new FileOutputStream(file,true);
+
+        fileOutputStream.write(sb.toString().getBytes());
+
     }
+
+
 }
