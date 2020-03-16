@@ -1,10 +1,8 @@
-import anonymity.algorithms.Mondrian;
-import data.EquivalenceClass;
+
 import org.deidentifier.arx.*;
 import org.deidentifier.arx.criteria.KAnonymity;
 import org.hsqldb.jdbc.JDBCStatement;
-import readers.ConfReader;
-import readers.DataReader;
+
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -25,7 +23,7 @@ public class MainMasterThesis{
 
     private static JDBCStatement statement;
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String args[]) throws IOException, SQLException {
         try {
             Class.forName("org.hsqldb.jdbc.JDBCDriver" );
         } catch (Exception e) {
@@ -33,10 +31,11 @@ public class MainMasterThesis{
             e.printStackTrace();
             return;
         }
-        /*
+
         Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\test", "SA", "");
         System.out.println("Connected");
         statement = (JDBCStatement) c.createStatement();
+        /*
         importAdultDataset();
 
         String query = "select maritalStatus, sex, AVG(age) as AVG_AGE, count(sex) as num from adult group by maritalStatus, sex";
@@ -45,14 +44,70 @@ public class MainMasterThesis{
         printResultToFile(statement.executeQuery(query),fileName,".csv");
 
         c.close();
-        mondrian();*/
+        mondrian();
         int[] k_array = new int[]{5,10,15,20};
         double[] s_array = new double[]{0.0,0.04,0.08,0.12,0.16,0.20};
         for(int k:k_array) {
             for (double s : s_array) {
                 flash(k, s);
             }
+        }*/
+        importAnonAdultDataset("adult_flash_anon_5_0%.csv","adult_flash_5_0");
+
+    }
+
+    private static void importAnonAdultDataset(String filename, String tableName) throws SQLException, IOException {
+        statement.execute("create table if not exists "+tableName+"(age VARCHAR(50), "
+                + "workclass VARCHAR(50), " + "fnlwgt int, "
+                + "education VARCHAR(50), " + "educationNum int, "
+                + "maritalStatus VARCHAR(50), " + "occupation VARCHAR(50), "
+                + "relationship VARCHAR(50), " + "race VARCHAR(50), "
+                + "sex VARCHAR(50), " + "capitalGain int, "
+                + "capitalLoss int, " + "hoursPerWeek int, "
+                + "nativeCountry VARCHAR(50), " + "income VARCHAR(50))");
+        ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM "+tableName);
+        resultSet.next();
+        if (resultSet.getInt(1)==0) {
+            Stream st = Files.lines(Paths.get("./data/anonymized/"+filename)).skip(1);
+            Object[] strings = st.toArray();
+            for(Object o:strings){
+                addAnonAdult(o,tableName);
+            }
         }
+    }
+
+    private static void addAnonAdult(Object o,String tableName){
+        String s = (String) o;
+        s = s.replaceAll("\"","'");
+        String[] values = s.split(";");
+        values = Arrays.stream(values).map(x->x.equals("*")?"null":x).toArray(String[]::new);
+        values = Arrays.stream(values).map(x->isIntegerOrNull(x)?x:"'"+x+"'").toArray(String[]::new);
+        try {
+            statement.execute("insert into "+tableName+" values("+
+                    values[0]+","+values[1]+","+
+                    values[2]+","+values[3]+","+
+                    values[4]+","+values[5]+","+
+                    values[6]+","+values[7]+","+
+                    values[8]+","+values[9]+","+
+                    values[10]+","+values[11]+","+
+                    values[12]+","+values[13]+","+
+                    values[14]+")");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private static boolean isIntegerOrNull(String x) {
+        try{
+            Integer.valueOf(x);
+        } catch (NumberFormatException e) {
+            if (x.equals("null")){
+                return true;
+            }
+            return false;
+        }
+        return true;
     }
 
     private static void printResultToFile(ResultSet resultSet, String fileName,String extension) throws SQLException, IOException {
@@ -118,7 +173,7 @@ public class MainMasterThesis{
         }
 
     }
-
+/*
     private static void mondrian() throws IOException {
         DataReader datareader = new DataReader("./data/dataset/adult.csv");
         EquivalenceClass data = new EquivalenceClass();
@@ -140,7 +195,7 @@ public class MainMasterThesis{
         System.out.println(algo.getResults().toString());
         //System.out.println(algo.getResults().get(0).get(0).getValue(2) +" "+algo.getResults().get(0).get(1).getValue(2));
     }
-
+*/
     private  static void flash(int k, double suppression) throws IOException {
         Data data = Data.create("./data/dataset/adult_clear.csv", StandardCharsets.UTF_8, ',');
 
