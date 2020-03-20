@@ -1,3 +1,0 @@
-/*C3*/SET SCHEMA PUBLIC
-create table if not exists adult(age int, workclass VARCHAR(50), fnlwgt int, education VARCHAR(50), educationNum int, maritalStatus VARCHAR(50), occupation VARCHAR(50), relationship VARCHAR(50), race VARCHAR(50), sex VARCHAR(50), capitalGain int, capitalLoss int, hoursPerWeek int, nativeCountry VARCHAR(50), income VARCHAR(50))
-DISCONNECT

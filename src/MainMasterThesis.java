@@ -2,6 +2,7 @@
 import org.deidentifier.arx.*;
 import org.deidentifier.arx.criteria.KAnonymity;
 import org.hsqldb.jdbc.JDBCStatement;
+import org.hsqldb.util.DatabaseManagerSwing;
 
 
 import java.io.File;
@@ -49,15 +50,23 @@ public class MainMasterThesis{
         double[] s_array = new double[]{0.0,0.04,0.08,0.12,0.16,0.20};
         for(int k:k_array) {
             for (double s : s_array) {
-                flash(k, s);
+                flashAdult(k, s);
             }
         }*/
-        importAnonAdultDataset("adult_flash_anon_5_0%.csv","adult_flash_5_0");
+        int[] k_array = new int[]{5,10,15,20};
+        int[] s_array = new int[]{0,4,8,12,16,20};
+        for(int k:k_array) {
+            importAnonAdultDataset("adult_mondrian_anon_"+k+".csv","adult_mondrian_"+k);
+            for (int s : s_array) {
+                importAnonAdultDataset("adult_flash_anon_"+k+"_"+s+"%.csv","adult_flash_"+k+"_"+s);
+                //System.out.println("drop table "+"adult_flash_"+k+"_"+s);
+            }
+        }
 
     }
 
     private static void importAnonAdultDataset(String filename, String tableName) throws SQLException, IOException {
-        statement.execute("create table if not exists "+tableName+"(age VARCHAR(50), "
+        statement.execute("create table if not exists "+tableName+"(age VARCHAR(50), age_min int, age_max int,"
                 + "workclass VARCHAR(50), " + "fnlwgt int, "
                 + "education VARCHAR(50), " + "educationNum int, "
                 + "maritalStatus VARCHAR(50), " + "occupation VARCHAR(50), "
@@ -67,7 +76,9 @@ public class MainMasterThesis{
                 + "nativeCountry VARCHAR(50), " + "income VARCHAR(50))");
         ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM "+tableName);
         resultSet.next();
+        //System.out.println(resultSet.getInt(1));
         if (resultSet.getInt(1)==0) {
+
             Stream st = Files.lines(Paths.get("./data/anonymized/"+filename)).skip(1);
             Object[] strings = st.toArray();
             for(Object o:strings){
@@ -80,18 +91,33 @@ public class MainMasterThesis{
         String s = (String) o;
         s = s.replaceAll("\"","'");
         String[] values = s.split(";");
+        //check if row is suppressed
+        if (Arrays.stream(values).filter(x->x.equals("*")).count()==9){
+            System.out.println("Suppressed");
+            return;
+        }
         values = Arrays.stream(values).map(x->x.equals("*")?"null":x).toArray(String[]::new);
         values = Arrays.stream(values).map(x->isIntegerOrNull(x)?x:"'"+x+"'").toArray(String[]::new);
+        String[] age = (values[0].replace("[","").replace("]","").replace("'","")).trim().split(",");
+        String min, max, sql = null;
+        if (age.length>1){
+            min = age[0];
+            max = age[1];
+        }else {
+            min=age[0];
+            max=age[0];
+        }
         try {
-            statement.execute("insert into "+tableName+" values("+
-                    values[0]+","+values[1]+","+
+            sql ="insert into "+tableName+" values("+
+                    values[0]+","+min+","+max+","+values[1]+","+
                     values[2]+","+values[3]+","+
                     values[4]+","+values[5]+","+
                     values[6]+","+values[7]+","+
                     values[8]+","+values[9]+","+
                     values[10]+","+values[11]+","+
                     values[12]+","+values[13]+","+
-                    values[14]+")");
+                    values[14]+")";
+            statement.execute(sql);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -196,7 +222,7 @@ public class MainMasterThesis{
         //System.out.println(algo.getResults().get(0).get(0).getValue(2) +" "+algo.getResults().get(0).get(1).getValue(2));
     }
 */
-    private  static void flash(int k, double suppression) throws IOException {
+    private  static void flashAdult(int k, double suppression) throws IOException {
         Data data = Data.create("./data/dataset/adult_clear.csv", StandardCharsets.UTF_8, ',');
 
         // Define input files
