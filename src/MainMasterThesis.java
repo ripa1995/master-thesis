@@ -53,6 +53,7 @@ public class MainMasterThesis{
                 flashAdult(k, s);
             }
         }*/
+        /*
         int[] k_array = new int[]{5,10,15,20};
         int[] s_array = new int[]{0,4,8,12,16,20};
         for(int k:k_array) {
@@ -61,7 +62,37 @@ public class MainMasterThesis{
                 importAnonAdultDataset("adult_flash_anon_"+k+"_"+s+"%.csv","adult_flash_"+k+"_"+s);
                 //System.out.println("drop table "+"adult_flash_"+k+"_"+s);
             }
+        }*/
+        int[] k_array = new int[]{5,10,15,20};
+        int[] sup_array = new int[]{0,4,8,12,16,20};
+        String[] cond_array = new String[]{" where LOWER(workclass) = 'private';workclass_eq_private"," where age_min < 40;age_lt_40"," where income = '<=50K';income_eq_lt50k"};
+        for(String s:cond_array) {
+            String[] values = s.split(";");
+            String fileName = "count_filter_"+values[1]+"_" + "adult";
+            String query = "select '"+fileName+"' as type,count(*) as num from " + "adult" + values[0];
+            if (values[0].contains("age_min")){
+                query = query.replace("age_min","age");
+            } else if (values[0].contains("age_max")){
+                query = query.replace("age_max","age");
+            }
+            printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            TableSupport tableSupport = new TableSupport(values[1]);
+            tableSupport.addRows(statement.executeQuery(query), fileName, true,true);
+            for (int k : k_array) {
+                fileName = "count_filter_"+values[1]+"_" + "adult_mondrian_" + k;
+                query = "select '"+fileName+"' as type,count(*) as num from " + "adult_mondrian_" + k + values[0];
+                printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+                tableSupport.addRows(statement.executeQuery(query), fileName, true);
+                for (int sup : sup_array) {
+                    fileName = "count_filter_"+values[1]+"_" + "adult_flash_" + k + "_" + sup;
+                    query = "select '"+fileName+"' as type,count(*) as num from " + "adult_flash_" + k + "_" + sup + values[0];
+                    printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+                    tableSupport.addRows(statement.executeQuery(query), fileName, true);
+                }
+            }
+            tableSupport.printToFile();
         }
+        c.close();
 
     }
 
