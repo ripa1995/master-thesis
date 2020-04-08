@@ -32,12 +32,20 @@ public class MainMasterThesis{
             e.printStackTrace();
             return;
         }
-
-        Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\test", "SA", "");
+        //choose database to use
+        //Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\adult", "SA", "");
+        Connection c = DriverManager.getConnection("jdbc:hsqldb:file:data\\healthcare", "SA", "");
         System.out.println("Connected");
         statement = (JDBCStatement) c.createStatement();
 
         //importAdultDataset();
+        //importHealthcareDataset();
+
+
+        //check method to change options and param
+        //anonymizeHealthcareWithFlash();
+        //importAnonHealthcareDatasetToDatabase();
+        //generateAnalysisOverHealthcareTables();
 
         //check method to change options and param
         //anonymizeAdultWithFlash();
@@ -46,6 +54,271 @@ public class MainMasterThesis{
 
         c.close();
 
+    }
+
+    private static void generateAnalysisOverHealthcareTables() throws SQLException, IOException {
+        int[] k_array = new int[]{5,10,15,20};
+        int[] sup_array = new int[]{0,4,8,12,16,20};
+        String[] a_array = new String[]{"Age","Maritalstatus","CombinedAgeMarital"};
+        String[] cond_array = new String[]{" where LOWER(maritalstatus) = 'separated';maritalstatus_eq_separated"," where age_min < 40;age_lt_40"};
+        for(String s:cond_array) {
+            String[] values = s.split(";");
+            String fileName = "count_filter_"+values[1]+"_" + "healthcare";
+            String query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare" + values[0];
+            if (values[0].contains("age_min")){
+                query = query.replace("age_min","age");
+            } else if (values[0].contains("age_max")){
+                query = query.replace("age_max","age");
+            }
+            printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            TableSupport tableSupport = new TableSupport(values[1]+"_healthcare");
+            tableSupport.addRows(statement.executeQuery(query), fileName, true,true);
+
+            fileName = "count_filter_"+values[1]+"_" + "healthcare_OLA_5";
+            query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_OLA_5" + values[0];
+            //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            tableSupport.addRows(statement.executeQuery(query), fileName, true);
+
+            fileName = "count_filter_"+values[1]+"_" + "healthcare_OLA_10";
+            query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_OLA_10" + values[0];
+            //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            tableSupport.addRows(statement.executeQuery(query), fileName, true);
+
+            fileName = "count_filter_"+values[1]+"_" + "healthcare_OLA_22";
+            query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_OLA_22" + values[0];
+            //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            tableSupport.addRows(statement.executeQuery(query), fileName, true);
+
+            fileName = "count_filter_"+values[1]+"_" + "healthcare_OLA_37";
+            query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_OLA_37" + values[0];
+            //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+            tableSupport.addRows(statement.executeQuery(query), fileName, true);
+
+            for (int k : k_array) {
+                fileName = "count_filter_"+values[1]+"_" + "healthcare_mondrian_" + k;
+                query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_mondrian_" + k + values[0];
+                //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+                tableSupport.addRows(statement.executeQuery(query), fileName, true);
+
+
+
+                for (int sup : sup_array) {
+                    fileName = "count_filter_"+values[1]+"_" + "healthcare_flash_" + k + "_" + sup;
+                    query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_flash_" + k + "_" + sup + values[0];
+                    //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+                    tableSupport.addRows(statement.executeQuery(query), fileName, true);
+                    for (String att : a_array) {
+                        fileName = "count_filter_"+values[1]+"_" + "healthcare_flash_" + k + "_" + sup + "_" + att;
+                        query = "select '"+fileName+"' as type,count(*) as num from " + "healthcare_flash_" + k + "_" + sup + "_" + att + values[0];
+                        //printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
+                        tableSupport.addRows(statement.executeQuery(query), fileName, true);
+                    }
+                }
+            }
+            tableSupport.printToFile();
+        }
+    }
+
+    private static void importAnonHealthcareDatasetToDatabase() throws IOException, SQLException {
+        int[] k_array = new int[]{5,10,15,20};
+        int[] s_array = new int[]{0,4,8,12,16,20};
+        String[] a_array = new String[]{"Age","Maritalstatus","CombinedAgeMarital"};
+        importAnonHealthcareDataset("healthcare_OLA_anon_5.csv","healthcare_OLA_5",",");
+        importAnonHealthcareDataset("healthcare_OLA_anon_10.csv","healthcare_OLA_10",",");
+        importAnonHealthcareDataset("healthcare_OLA_anon_22.csv","healthcare_OLA_22",",");
+        importAnonHealthcareDataset("healthcare_OLA_anon_37.csv","healthcare_OLA_37",",");
+        for(int k:k_array) {
+
+            importAnonHealthcareDataset("healthcare_mondrian_anon_"+k+".csv","healthcare_mondrian_"+k,";");
+
+            for (int s : s_array) {
+                importAnonHealthcareDataset("healthcare_flash_anon_"+k+"_"+s+"%.csv","healthcare_flash_"+k+"_"+s,";");
+                for (String att : a_array) {
+                    importAnonHealthcareDataset("healthcare_flash_anon_" + k + "_" + s + "%_"+att+".csv", "healthcare_flash_" + k + "_" + s+"_"+att, ";");
+                }
+            }
+        }
+    }
+
+    private static void importAnonHealthcareDataset(String filename, String tableName, String split) throws SQLException, IOException {
+
+        statement.execute("create table if not exists "+tableName+"(age VARCHAR(50), age_min int, age_max int,"
+                + "zipcode VARCHAR(50), "
+                + "sex VARCHAR(50), "
+                + "race VARCHAR(50), " + "religion VARCHAR(50), "
+                + "maritalstatus VARCHAR(50), " + "icdcode VARCHAR(50), "
+                + "long_description VARCHAR(200), "
+                + "short_description VARCHAR(50))");
+        ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM "+tableName);
+        resultSet.next();
+        System.out.println(tableName + " " + resultSet.getInt(1));
+        if (resultSet.getInt(1)==0) {
+            try {
+                Stream st = Files.lines(Paths.get("./data/anonymized/healthcare/" + filename)).skip(1);
+                Object[] strings = st.toArray();
+                for (Object o : strings) {
+                    addAnonHealthcare(o, tableName, split);
+                }
+            } catch (IOException e) {
+                return;
+            }
+        }
+    }
+
+    private static void addAnonHealthcare(Object o, String tableName, String split) {
+        String s = (String) o;
+
+        s = s.replaceAll("\"","");
+        s = s.replaceAll("'","");
+        String[] values = s.split(split);
+        //check if row is suppressed
+        if (Arrays.stream(values).filter(x->x.equals("*")).count()==6){
+            return;
+        }
+        values = Arrays.stream(values).map(x->x.equals("*")?"null":x).toArray(String[]::new);
+        values = Arrays.stream(values).map(x->isIntegerOrNull(x)?x:"'"+x+"'").toArray(String[]::new);
+        String[] age = (values[0].replace("[","").replace("]","").replace("'","").replace("-",",")).trim().split(",");
+        String min, max, sql = null;
+        if (age.length>1){
+            min = age[0];
+            max = age[1];
+        }else {
+            min=age[0];
+            max=age[0];
+        }
+        try {
+            sql ="insert into "+tableName+" values("+
+                    values[0]+","+min+","+max+","+ values[1] + "," +
+                    values[2] + "," + values[3] + "," +
+                    values[4] + "," + values[5] + "," +
+                    values[6] + "," + values[7]
+                    + "," + values[8]  + ")";
+            statement.execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void anonymizeHealthcareWithFlash() throws IOException {
+        int[] k_array = new int[]{5,10,15,20};
+        double[] s_array = new double[]{0.0,0.04,0.08,0.12,0.16,0.20};
+        String[] a_array = new String[]{"Age","Maritalstatus","CombinedAgeMarital"};
+        for(int k:k_array) {
+            for (double s : s_array) {
+                for (String att : a_array) {
+                    flashHealthcare(k, s, "healthcare_flash_anon_" + k + "_" + (int) (s * 100) + "%_"+att, att, 0);
+                }
+            }
+        }
+    }
+
+    private static void flashHealthcare(int k, double suppression, String filename,String attribute, int maxLevel) throws IOException {
+        Data data = Data.create("./data/dataset/healthcare_clean.csv", StandardCharsets.UTF_8, ',');
+        //anni,zipcode,genere,razza,religione,maritalstatus,icdcode,long_description,short_description
+        // Define input files
+        data.getDefinition().setAttributeType("age", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_age.csv", StandardCharsets.UTF_8, ','));
+
+        data.getDefinition().setAttributeType("maritalstatus", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_maritalstatus.csv", StandardCharsets.UTF_8, ','));
+        data.getDefinition().setAttributeType("religion", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_religion.csv", StandardCharsets.UTF_8, ','));
+
+        data.getDefinition().setAttributeType("race", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_race.csv", StandardCharsets.UTF_8, ','));
+        data.getDefinition().setAttributeType("zipcode", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_zipcode.csv", StandardCharsets.UTF_8, ','));
+        data.getDefinition().setAttributeType("sex", AttributeType.Hierarchy.create("./data/hierarchies/healthcare_sex.csv", StandardCharsets.UTF_8, ','));
+
+        data.getDefinition().setAttributeType("icdcode",AttributeType.INSENSITIVE_ATTRIBUTE);
+        data.getDefinition().setAttributeType("long_description",AttributeType.INSENSITIVE_ATTRIBUTE);
+        data.getDefinition().setAttributeType("short_description",AttributeType.INSENSITIVE_ATTRIBUTE);
+
+        // set the minimal/maximal generalization height
+        if (attribute!=null) {
+            if (attribute.equals("CombinedAgeMarital")) {
+                data.getDefinition().setMaximumGeneralization("age", maxLevel);
+                data.getDefinition().setMaximumGeneralization("maritalstatus", maxLevel);
+            } else {
+                data.getDefinition().setMaximumGeneralization(attribute, maxLevel);
+            }
+        }
+        //data.getDefinition().setMaximumGeneralization("education", 2);
+
+        // Create an instance of the anonymizer
+        ARXAnonymizer anonymizer = new ARXAnonymizer();
+
+        // Execute the algorithm
+        ARXConfiguration config = ARXConfiguration.create();
+        config.addPrivacyModel(new KAnonymity(k));
+        config.setSuppressionLimit(suppression);
+        ARXResult result = anonymizer.anonymize(data, config);
+
+        //String filename = "adult_flash_anon_"+k+"_"+(int)(suppression*100)+"%";
+
+        // Print info
+        printResult(result, data, filename);
+
+        // Write results
+        if (result.getGlobalOptimum()!=null) {
+            System.out.print(" - Writing data...");
+            result.getOutput(false).save("data/anonymized/healthcare/" + filename + ".csv", ';');
+            System.out.println("Done!");
+        }
+    }
+
+    private static void importHealthcareDataset() throws SQLException, IOException {
+
+        statement.execute("create table if not exists healthcare(age int, "
+                + "zipcode VARCHAR(50), "
+                + "sex VARCHAR(50), "
+                + "race VARCHAR(50), " + "religion VARCHAR(50), "
+                + "maritalstatus VARCHAR(50), " + "icdcode VARCHAR(50), "
+                + "long_description VARCHAR(200), "
+                + "short_description VARCHAR(50))");
+
+        ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM healthcare");
+        resultSet = statement.executeQuery("delete FROM healthcare where 1=1");
+        resultSet = statement.executeQuery("SELECT COUNT(*) FROM healthcare");
+        resultSet.next();
+        System.out.println(resultSet.getInt(1));
+        if (resultSet.getInt(1)==0) {
+            Stream st = Files.lines(Paths.get("./data/dataset/healthcare_clean.csv")).skip(1);
+            st.forEach(MainMasterThesis::addHealthcare);
+        }
+    }
+
+    private static void addHealthcare(Object o) {
+        String s = (String) o;
+        s = s.replaceAll("'","");
+        String[] values = s.split(",");
+        if (values.length==9) {
+            try {
+                statement.execute("insert into healthcare values(" +
+                        values[0] + ",'" + values[1] + "','" +
+                        values[2] + "','" + values[3] + "','" +
+                        values[4] + "','" + values[5] + "','" +
+                        values[6] + "','" + values[7]
+                        + "','" + values[8] + "'" + ")");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else if (values.length==8) {
+            try {
+                statement.execute("insert into healthcare values(" +
+                        values[0] + ",'" + values[1] + "','" +
+                        values[2] + "','" + values[3] + "','" +
+                        values[4] + "','" + values[5] + "','" +
+                        values[6] + "','" + values[7] + "',null" + ")");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            try {
+                statement.execute("insert into healthcare values(" +
+                        values[0] + ",'" + values[1] + "','" +
+                        values[2] + "','" + values[3] + "','" +
+                        values[4] + "','" + values[5] + "','" +
+                        values[6] + "',null,null" + ")");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private static void generateAnalysisOverAdultTables() throws SQLException, IOException {
@@ -63,7 +336,7 @@ public class MainMasterThesis{
                 query = query.replace("age_max","age");
             }
             printResultToFile(statement.executeQuery("explain json minimal for " + query), fileName, ".json");
-            TableSupport tableSupport = new TableSupport(values[1]);
+            TableSupport tableSupport = new TableSupport(values[1]+"_adult");
             tableSupport.addRows(statement.executeQuery(query), fileName, true,true);
             for (int k : k_array) {
                 fileName = "count_filter_"+values[1]+"_" + "adult_mondrian_" + k;
@@ -133,7 +406,7 @@ public class MainMasterThesis{
         System.out.println(tableName + " " + resultSet.getInt(1));
         if (resultSet.getInt(1)==0) {
             try {
-                Stream st = Files.lines(Paths.get("./data/anonymized/" + filename)).skip(1);
+                Stream st = Files.lines(Paths.get("./data/anonymized/adult/" + filename)).skip(1);
                 Object[] strings = st.toArray();
                 for (Object o : strings) {
                     addAnonAdult(o, tableName, split);
