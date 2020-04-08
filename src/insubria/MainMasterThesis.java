@@ -511,20 +511,20 @@ public class MainMasterThesis{
         }
     }
 
-    private static void addAdult(Object o){
+    private static void addAdult(Object o) {
         String s = (String) o;
-        s = s.replaceAll("\"","'");
+        s = s.replaceAll("\"", "'");
         String[] values = s.split(",");
         try {
-            statement.execute("insert into adult values("+
-                    values[0]+","+values[1]+","+
-                    values[2]+","+values[3]+","+
-                    values[4]+","+values[5]+","+
-                    values[6]+","+values[7]+","+
-                    values[8]+","+values[9]+","+
-                    values[10]+","+values[11]+","+
-                    values[12]+","+values[13]+","+
-                    values[14]+")");
+            statement.execute("insert into adult values(" +
+                    values[0] + "," + values[1] + "," +
+                    values[2] + "," + values[3] + "," +
+                    values[4] + "," + values[5] + "," +
+                    values[6] + "," + values[7] + "," +
+                    values[8] + "," + values[9] + "," +
+                    values[10] + "," + values[11] + "," +
+                    values[12] + "," + values[13] + "," +
+                    values[14] + ")");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -576,7 +576,7 @@ public class MainMasterThesis{
         // set the minimal/maximal generalization height
         if (attribute!=null) {
             for (String att: attribute
-                 ) {
+            ) {
                 data.getDefinition().setMaximumGeneralization(att, maxLevel);
             }
         }
