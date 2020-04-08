@@ -1,0 +1,7 @@
+Divorced,Spouse not present,*
+Married-AF-spouse,Spouse present,*
+Married-civ-spouse,Spouse present,*
+Married-spouse-absent,Spouse not present,*
+Never-married,Spouse not present,*
+Separated,Spouse not present,*
+Widowed,Spouse not present,*
